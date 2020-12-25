@@ -1,6 +1,7 @@
 # Take in the board
 import math
 import numpy
+import timeit
 
 
 class Ball:
@@ -13,7 +14,7 @@ class Ball:
 
         # Trajectory is a list of future postions once
         # simulation has been run
-        self.trajectory = []
+        self.trajectory = [[self.x_initial, self.y_initial]]
 
         # Velocity
         self.v = [0, 0]
@@ -24,6 +25,9 @@ class Ball:
 
         # Think about color here, do we actually want to store it on
         self.color = color
+
+    def update_trajectory(self):
+        self.trajectory.append([self.x, self.y])
 
     def __repr__(self):
         if self.is_white_ball:
@@ -166,8 +170,9 @@ class Board:
                 return True
 
     def run_simulation(self, run_time, dt):
-        time = 0
+        # start = timeit.timeit()
 
+        time = 0
         while time < run_time:
             # Ball velocities
             for ball in self.active_balls:
@@ -176,7 +181,7 @@ class Board:
 
                 # Probably better way to do this,
                 # maybe only append if there is a collision?
-                ball.trajectory.append([ball.x, ball.y])
+                # ball.update_trajectory()
 
             # Ball collisions
             checked_balls = set()
@@ -191,10 +196,14 @@ class Board:
                     elif self.balls_overlap(ball_1, ball_2):
                         self.collide_balls(ball_1, ball_2)
 
+                        ball_1.update_trajectory()
+                        ball_2.update_trajectory()
+
             # Balls going in holes
             for ball in self.active_balls:
                 if self.ball_in_pocket(ball):
                     self.active_balls.remove(ball)
+                    ball.update_trajectory()
 
             # Balls colliding with side
             for ball in self.active_balls:
@@ -202,12 +211,20 @@ class Board:
                     (ball.x - ball.radius) < 0
                 ):
                     ball.v[0] = -ball.v[0]
+                    ball.update_trajectory()
                 if ((ball.y + ball.radius) > self.max_y) or (
                     (ball.y - ball.radius) < 0
                 ):
                     ball.v[1] = -ball.v[1]
+                    ball.update_trajectory()
 
             time += dt
+
+        for ball in self.active_balls:
+            ball.update_trajectory()
+
+        # end = timeit.timeit()
+        # print("Time for simulation was:", end - start)
 
 
 if __name__ == "__main__":
