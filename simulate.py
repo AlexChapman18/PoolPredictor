@@ -21,7 +21,6 @@ class Ball:
         # Other info
         self.radius = radius
         self.is_white_ball = is_white_ball
-        self.potted = False
 
         # Think about color here, do we actually want to store it on
         self.color = color
@@ -69,12 +68,14 @@ class Board:
         # NOTE: top left is 0,0, not bottom left!
         self.max_x = max_x
         self.max_y = max_y
-        self.balls = []
+        self.all_balls = []
+        self.active_balls = []
         self.cue = None
         self.pockets = []
 
     def add_ball(self, ball):
-        self.balls.append(ball)
+        self.all_balls.append(ball)
+        self.active_balls.append(ball)
 
     def add_cue(self, cue):
         self.cue = cue
@@ -95,7 +96,7 @@ class Board:
             self.pockets.append(pocket)
 
     def hit_white_ball(self):
-        for ball in self.balls:
+        for ball in self.all_balls:
             if ball.is_white_ball:
                 initial_speed = 1
 
@@ -169,10 +170,7 @@ class Board:
 
         while time < run_time:
             # Ball velocities
-            for ball in self.balls:
-                if ball.potted:
-                    continue
-
+            for ball in self.active_balls:
                 ball.x += ball.v[0]
                 ball.y += ball.v[1]
 
@@ -181,33 +179,25 @@ class Board:
                 ball.trajectory.append([ball.x, ball.y])
 
             # Ball collisions
-            for ball_1 in self.balls:
-                if ball_1.potted:
-                    continue
+            checked_balls = set()
+            for ball_1 in self.active_balls:
+                checked_balls.add(ball_1)
 
-                for ball_2 in self.balls:
-                    if ball_2.potted:
+                for ball_2 in self.active_balls:
+                    # if ball_1 == ball_2:
+                    #     continue
+                    if ball_2 in checked_balls:
                         continue
-
-                    if ball_1 == ball_2:
-                        continue
-
                     elif self.balls_overlap(ball_1, ball_2):
                         self.collide_balls(ball_1, ball_2)
 
             # Balls going in holes
-            for ball in self.balls:
-                if ball.potted:
-                    continue
-
+            for ball in self.active_balls:
                 if self.ball_in_pocket(ball):
-                    ball.potted = True
+                    self.active_balls.remove(ball)
 
             # Balls colliding with side
-            for ball in self.balls:
-                if ball.potted:
-                    continue
-
+            for ball in self.active_balls:
                 if ((ball.x + ball.radius) > self.max_x) or (
                     (ball.x - ball.radius) < 0
                 ):
