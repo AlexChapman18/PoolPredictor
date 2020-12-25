@@ -5,6 +5,7 @@ from simulate import Ball, Board, Cue
 
 GREEN = (0, 200, 0)
 RED = (200, 0, 0)
+BLUE = (0, 0, 200)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -48,6 +49,12 @@ def draw_board(screen, board):
     # Fill the background with white
     screen.fill(GREEN)
 
+    # Draw pockets
+    for pocket in board.pockets:
+        pos = tuple(coord_pair_to_pixel([pocket.x, pocket.y]))
+        radius = coord_to_pixel(pocket.radius)
+        pygame.draw.circle(screen, BLACK, pos, radius)
+
     # Draw balls
     for ball in board.balls:
         pos = tuple(coord_pair_to_pixel([ball.x_initial, ball.y_initial]))
@@ -81,18 +88,21 @@ def draw_board(screen, board):
 if __name__ == "__main__":
     X_MAX = 83.5
     Y_MAX = 167.5
+
+    # Single ball test
     screen = setup_screen(X_MAX, Y_MAX)
 
     # Setup board
     board = Board(X_MAX, Y_MAX)
+    board.create_pockets()
 
-    white_ball = Ball(40, 20, WHITE, is_white_ball=True)
+    white_ball = Ball(40, 40, WHITE, is_white_ball=True)
     board.add_ball(white_ball)
 
-    ball_2 = Ball(10, 20, RED)
+    ball_2 = Ball(43, 55, RED)
     board.add_ball(ball_2)
 
-    cue = Cue(0, 50)
+    cue = Cue(40, 0)
     cue.set_front(white_ball.x_initial, white_ball.y_initial)
     board.add_cue(cue)
 
@@ -101,6 +111,53 @@ if __name__ == "__main__":
     board.run_simulation(300, 1)
 
     while True:
+        try:
+            draw_board(screen, board)
+        except PygameExit:
+            break
+
+    # Multi ball test.
+    cue_pos = [40, 0]
+
+    # setup new screen
+    screen = setup_screen(X_MAX, Y_MAX)
+    while True:
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    cue_pos[0] -= 1
+                if event.key == pygame.K_RIGHT:
+                    cue_pos[0] += 1
+                if event.key == pygame.K_UP:
+                    cue_pos[1] -= 1
+                if event.key == pygame.K_DOWN:
+                    cue_pos[1] += 1
+
+        # Setup new board
+        board = Board(X_MAX, Y_MAX)
+        board.create_pockets()
+
+        white_ball = Ball(40, 40, WHITE, is_white_ball=True)
+        board.add_ball(white_ball)
+
+        ball_1 = Ball(40, 100, RED)
+        board.add_ball(ball_1)
+
+        ball_2 = Ball(37.5, 105, RED)
+        board.add_ball(ball_2)
+
+        ball_3 = Ball(42.5, 105, RED)
+        board.add_ball(ball_3)
+
+        cue = Cue(cue_pos[0], cue_pos[1])
+        cue.set_front(white_ball.x_initial, white_ball.y_initial)
+        board.add_cue(cue)
+
+        # Run simulation
+        board.hit_white_ball()
+        board.run_simulation(300, 1)
+
         try:
             draw_board(screen, board)
         except PygameExit:

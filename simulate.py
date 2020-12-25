@@ -1,9 +1,10 @@
 # Take in the board
 import math
+import numpy
 
 
 class Ball:
-    def __init__(self, x, y, color, radius=10, is_white_ball=False):
+    def __init__(self, x, y, color, radius=2.4, is_white_ball=False):
         # Positions
         self.x_initial = x
         self.y_initial = y
@@ -15,12 +16,12 @@ class Ball:
         self.trajectory = []
 
         # Velocity
-        self.dx = 0
-        self.dy = 0
+        self.v = [0, 0]
 
         # Other info
         self.radius = radius
         self.is_white_ball = is_white_ball
+        self.potted = False
 
         # Think about color here, do we actually want to store it on
         self.color = color
@@ -53,6 +54,13 @@ class Cue:
         return math.sqrt((self.get_x_diff() ** 2) + (self.get_y_diff() ** 2))
 
 
+class Pocket:
+    def __init__(self, x, y, radius=6):
+        self.radius = radius
+        self.x = x
+        self.y = y
+
+
 # Maybe instead had a simulation class?
 
 
@@ -63,12 +71,28 @@ class Board:
         self.max_y = max_y
         self.balls = []
         self.cue = None
+        self.pockets = []
 
     def add_ball(self, ball):
         self.balls.append(ball)
 
     def add_cue(self, cue):
         self.cue = cue
+
+    def create_pockets(self):
+        # Create the six pockets
+        pocket_coords = [
+            [0, 0],
+            [self.max_x, 0],
+            [0, self.max_y / 2],
+            [self.max_x, self.max_y / 2],
+            [0, self.max_y],
+            [self.max_x, self.max_y],
+        ]
+
+        for pocket_coord in pocket_coords:
+            pocket = Pocket(pocket_coord[0], pocket_coord[1])
+            self.pockets.append(pocket)
 
     def hit_white_ball(self):
         for ball in self.balls:
@@ -78,10 +102,10 @@ class Board:
                 # Find the angle which the ball should travel
                 # In the code, the cue contains 2 points, the
                 # front and the back of the cue
-                ball.dx = initial_speed * (
+                ball.v[0] = initial_speed * (
                     self.cue.get_x_diff() / self.cue.get_abs_len()
                 )
-                ball.dy = initial_speed * (
+                ball.v[1] = initial_speed * (
                     self.cue.get_y_diff() / self.cue.get_abs_len()
                 )
                 break
@@ -89,9 +113,9 @@ class Board:
     # should this be in another function?
     # it doesn't use self at all...
     def balls_overlap(self, ball_1, ball_2):
-        x_diff = ball_1.x - ball_2.x
-        y_diff = ball_1.y - ball_2.y
-        distance = sqrt((x_diff ** 2) + (y_diff ** 2))
+        x_diff = ball_2.x - ball_1.x
+        y_diff = ball_2.y - ball_1.y
+        distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
 
         if distance < (ball_1.radius + ball_2.radius):
             return True
@@ -106,18 +130,39 @@ class Board:
         # Perp velocity is 90 degrees to that, so is unchanged by the collision,
         # as there is no force in that direction
 
-        ball_1_v = [ball_1.x, ball_1.y]
-        ball_2_v = [ball_2.x, ball_2.y]
+        # Get vector betwen the centers
+        x_diff = ball_2.x - ball_1.x
+        y_diff = ball_2.y - ball_1.y
+        parallel_dir = [x_diff, y_diff]
 
-        # get the normalised direction vector for the direction between 2 centers
-        parallel_dir = []
+        # Normalize it
+        distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
+        parallel_dir = [i * (1 / distance) for i in parallel_dir]
 
-        # dot by the normalised veloicites to get the correct component
+        # Find components of the velocities in parallel direction
+        ball_1_v_para = [numpy.dot(parallel_dir, ball_1.v) * i for i in parallel_dir]
+        ball_2_v_para = [numpy.dot(parallel_dir, ball_2.v) * i for i in parallel_dir]
 
-        # swap the components, and add them back to the original velocities
-        ball_1_v =
+        # Sanity check the balls are actually colliding.
+        if not (numpy.dot(parallel_dir, ball_1.v) > numpy.dot(parallel_dir, ball_2.v)):
+            # balls aren't actually colliding, pass
+            return
 
-        # Assume ball masses are the SAME
+        # Here, assume the masses of the balls is the SAME
+        # in that case, we just swap the parallel velocities
+        ball_1.v = numpy.add(ball_1.v, numpy.subtract(ball_2_v_para, ball_1_v_para))
+        ball_2.v = numpy.add(ball_2.v, numpy.subtract(ball_1_v_para, ball_2_v_para))
+
+    def ball_in_pocket(self, ball):
+        for pocket in self.pockets:
+            x_diff = ball.x - pocket.x
+            y_diff = ball.y - pocket.y
+            distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
+
+            # If the balls center of mass is in the pocket, then
+            # the it is in the pocket
+            if distance < pocket.radius:
+                return True
 
     def run_simulation(self, run_time, dt):
         time = 0
@@ -125,8 +170,11 @@ class Board:
         while time < run_time:
             # Ball velocities
             for ball in self.balls:
-                ball.x += ball.dx
-                ball.y += ball.dy
+                if ball.potted:
+                    continue
+
+                ball.x += ball.v[0]
+                ball.y += ball.v[1]
 
                 # Probably better way to do this,
                 # maybe only append if there is a collision?
@@ -134,24 +182,40 @@ class Board:
 
             # Ball collisions
             for ball_1 in self.balls:
+                if ball_1.potted:
+                    continue
+
                 for ball_2 in self.balls:
+                    if ball_2.potted:
+                        continue
+
                     if ball_1 == ball_2:
                         continue
+
                     elif self.balls_overlap(ball_1, ball_2):
                         self.collide_balls(ball_1, ball_2)
 
             # Balls going in holes
+            for ball in self.balls:
+                if ball.potted:
+                    continue
+
+                if self.ball_in_pocket(ball):
+                    ball.potted = True
 
             # Balls colliding with side
             for ball in self.balls:
+                if ball.potted:
+                    continue
+
                 if ((ball.x + ball.radius) > self.max_x) or (
                     (ball.x - ball.radius) < 0
                 ):
-                    ball.dx = -ball.dx
+                    ball.v[0] = -ball.v[0]
                 if ((ball.y + ball.radius) > self.max_y) or (
                     (ball.y - ball.radius) < 0
                 ):
-                    ball.dy = -ball.dy
+                    ball.v[1] = -ball.v[1]
 
             time += dt
 
