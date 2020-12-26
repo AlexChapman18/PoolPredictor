@@ -104,6 +104,10 @@ class Board:
             if ball.is_white_ball:
                 initial_speed = 1
 
+                if self.cue.get_abs_len() == 0:
+                    # will get zero error, jus break
+                    break
+
                 # Find the angle which the ball should travel
                 # In the code, the cue contains 2 points, the
                 # front and the back of the cue
@@ -120,6 +124,16 @@ class Board:
     def balls_overlap(self, ball_1, ball_2):
         x_diff = ball_2.x - ball_1.x
         y_diff = ball_2.y - ball_1.y
+
+        # First, do simple check to see if we should continue
+        # This helps performance as sqrt is an expensive function call,
+        # and in most cases balls will NOT overlap
+        if (x_diff > (ball_1.radius + ball_2.radius)) or (
+            y_diff > (ball_1.radius + ball_2.radius)
+        ):
+            # Balls definitely can't overlap
+            return False
+
         distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
 
         if distance < (ball_1.radius + ball_2.radius):
@@ -158,16 +172,28 @@ class Board:
         ball_1.v = numpy.add(ball_1.v, numpy.subtract(ball_2_v_para, ball_1_v_para))
         ball_2.v = numpy.add(ball_2.v, numpy.subtract(ball_1_v_para, ball_2_v_para))
 
-    def ball_in_pocket(self, ball):
+    # This is very similar to balls overlap, can combind?
+    # Ah maybenot, as only care about the pocket radius..
+    def ball_in_pockets(self, ball):
         for pocket in self.pockets:
             x_diff = ball.x - pocket.x
             y_diff = ball.y - pocket.y
+
+            # First, do simple check to see if we should continue
+            # This helps performance as sqrt is an expensive function call,
+            # and in most cases balls will NOT overlap
+            if (x_diff > (pocket.radius)) or (y_diff > (pocket.radius)):
+                # Balls definitely not in this pocket
+                continue
+
             distance = math.sqrt((x_diff ** 2) + (y_diff ** 2))
 
             # If the balls center of mass is in the pocket, then
             # the it is in the pocket
             if distance < pocket.radius:
                 return True
+
+        return False
 
     def run_simulation(self, run_time, dt):
         # start = timeit.timeit()
@@ -178,10 +204,6 @@ class Board:
             for ball in self.active_balls:
                 ball.x += ball.v[0]
                 ball.y += ball.v[1]
-
-                # Probably better way to do this,
-                # maybe only append if there is a collision?
-                # ball.update_trajectory()
 
             # Ball collisions
             checked_balls = set()
@@ -201,7 +223,7 @@ class Board:
 
             # Balls going in holes
             for ball in self.active_balls:
-                if self.ball_in_pocket(ball):
+                if self.ball_in_pockets(ball):
                     self.active_balls.remove(ball)
                     ball.update_trajectory()
 
