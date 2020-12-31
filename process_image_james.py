@@ -110,19 +110,20 @@ while True:
         mask2.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )[-2]
     contour = max(contours, key=cv2.contourArea)
-    img1 = dst
-    # img1 = cv2.drawContours(dst, [contour], -1, (0, 255, 0), 3)
+    # img1 = dst
+    img1 = cv2.drawContours(dst, [contour], -1, (0, 255, 0), 3)
 
     rect = cv2.minAreaRect(contour)
     box = cv2.boxPoints(rect)
     box = np.int0(box)
     img1_5 = cv2.drawContours(dst, [box], 0, (0, 100, 100), 2)
 
-    # img2 = cv2.drawContours(dst, [hull], -1, (0, 100, 100), 3)
+    hull = cv2.convexHull(contour)
+    img1_6 = cv2.drawContours(dst, [hull], -1, (200, 100, 100), 3)
 
-    epsilon = 0.0045 * cv2.arcLength(contour, True)
-    approx = cv2.approxPolyDP(contour, epsilon, True)
-    img2 = cv2.drawContours(img1_5, [approx], 0, (160, 255, 0), 2)
+    epsilon = 0.05 * cv2.arcLength(hull, True)
+    approx = cv2.approxPolyDP(hull, epsilon, True)
+    img2 = cv2.drawContours(img1_6, [approx], 0, (160, 255, 0), 2)
 
     # Find the corners of the table
     # Corners are annoying nested with pointless arrays, also it must by numpy arrays...
