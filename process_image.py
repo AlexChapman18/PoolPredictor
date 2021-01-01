@@ -1,117 +1,70 @@
-
 import cv2
 import numpy as np
 
+# Notes for green Band
 
-def nothing(x):
-    pass
+cue_hsv_min = (94, 20, 159)
+cue_hsv_max = (129, 94, 255)
+ball_hsv_min = (0, 0, 157)
+ball_hsv_max = (185, 34, 255)
 
-# #cap = cv2.VideoCapture(0);
-# img = cv2.imread('h7ev9-p646g.jpg')
-# hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-
-# #H: 0-179, S: 0-255, V: 0-255
-
-# lower_range = np.array([120, 5.1, 247])
-# upper_range = np.array([136, 24.5, 229.5])
-
-# mask = cv2.inRange(hsv, lower_range, upper_range)
-
-# cv2.imshow("Image", img)
-# cv2.imshow("image", mask)
-# cv2.resizeWindow("Image", 1280, 720)
-
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+image = "table_with_bands.jpg"
 
 
+def blob_detect(
+    image,
+    hsv_min,
+    hsv_max,
+    output_option=0,
+):
 
-#finding hsv range of target object(pen)
-import cv2
-import numpy as np
-import time
-# A required callback method that goes into the trackbar function.
-def nothing(x):
-    pass
+    image = cv2.imread(image)
 
-# Initializing the webcam feed.
-cap = cv2.VideoCapture(0)
-cap.set(3,1280)
-cap.set(4,720)
+    # Blurs image for easier better detection
+    image = cv2.blur(image, (10, 10))
 
-# Create a window named trackbars.
-cv2.namedWindow("Trackbars")
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, hsv_min, hsv_max)
+    reversemask = 255 - mask
+    cv2.imshow("reversed mask", reversemask)
+    cv2.waitKey(0)
 
-# Now create 6 trackbars that will control the lower and upper range of 
-# H,S and V channels. The Arguments are like this: Name of trackbar, 
-# window name, range,callback function. For Hue the range is 0-179 and
-# for S,V its 0-255.
-cv2.createTrackbar("L - H", "Trackbars", 0, 179, nothing)
-cv2.createTrackbar("L - S", "Trackbars", 0, 255, nothing)
-cv2.createTrackbar("L - V", "Trackbars", 0, 255, nothing)
-cv2.createTrackbar("U - H", "Trackbars", 179, 179, nothing)
-cv2.createTrackbar("U - S", "Trackbars", 255, 255, nothing)
-cv2.createTrackbar("U - V", "Trackbars", 255, 255, nothing)
- 
-while True:
-    
-    # Start reading the webcam feed frame by frame.
-    ret, frame = cap.read()
-    if not ret:
-        break
-    # Flip the frame horizontally (Not required)
-    frame = cv2.imread('Bands on Pool cue.jpg')
-    
-    # Convert the BGR image to HSV image.
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    
-    # Get the new values of the trackbar in real time as the user changes 
-    # them
-    l_h = cv2.getTrackbarPos("L - H", "Trackbars")
-    l_s = cv2.getTrackbarPos("L - S", "Trackbars")
-    l_v = cv2.getTrackbarPos("L - V", "Trackbars")
-    u_h = cv2.getTrackbarPos("U - H", "Trackbars")
-    u_s = cv2.getTrackbarPos("U - S", "Trackbars")
-    u_v = cv2.getTrackbarPos("U - V", "Trackbars")
- 
-    # Set the lower and upper HSV range according to the value selected
-    # by the trackbar
-    lower_range = np.array([l_h, l_s, l_v])
-    upper_range = np.array([u_h, u_s, u_v])
-    
-    # Filter the image and get the binary mask, where white represents 
-    # your target color
-    mask = cv2.inRange(hsv, lower_range, upper_range)
- 
-    # You can also visualize the real part of the target color (Optional)
-    res = cv2.bitwise_and(frame, frame, mask=mask)
-    
-    # Converting the binary mask to 3 channel image, this is just so 
-    # we can stack it with the others
-    mask_3 = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-    
-    # stack the mask, orginal frame and the filtered result
-    stacked = np.hstack((mask_3,frame,res))
-    
-    # Show this stacked frame at 40% of the size.
-    cv2.imshow('Trackbars',cv2.resize(stacked,None,fx=0.4,fy=0.4))
-    
-    # If the user presses ESC then exit the program
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
-    
-    # If the user presses `s` then print this array.
-    if key == ord('s'):
-        
-        thearray = [[l_h,l_s,l_v],[u_h, u_s, u_v]]
-        print(thearray)
-        
-        # Also save this array as penval.npy
-        np.save('hsv_value',thearray)
-        break
-    
-# Release the camera & destroy the windows.    
-cap.release()
-cv2.destroyAllWindows()
+    # removes filters from blob detection
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByCircularity = False
+    params.filterByInertia = False
+    params.filterByArea = False
+
+    if output_option == 2:
+        params.filterByArea = True
+        params.minArea = 500
+        params.maxArea = 1000
+
+    # finds all blobs
+    detector = cv2.SimpleBlobDetector_create(params)
+
+    keypoints = detector.detect(reversemask)
+
+    # finds the largest blob
+    if output_option == 1:
+        size = 20
+        for point in keypoints:
+            if point.size > size:
+                size = point.size
+                largest_blob = point
+        return (largest_blob.pt[0], largest_blob.pt[1])
+
+    elif output_option == 2:
+        for point in keypoints:
+            return (point.pt[0], point.pt[1])
+
+    else:
+        blob_coords = []
+        for point in keypoints:
+            blob_coords += (point.pt[0], point.pt[1])
+        return blob_coords
+
+
+print(blob_detect(image, cue_hsv_min, cue_hsv_max, 1))
+print(blob_detect(image, ball_hsv_min, ball_hsv_max, 2))
+print("") 
