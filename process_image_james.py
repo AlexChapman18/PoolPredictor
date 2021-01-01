@@ -7,15 +7,17 @@ Y_MAX = 167.5
 SKIRT = 3.25
 
 
-def process_image(image):
+def process_image(image, undistort=False):
 
-    # # undistort
-    # h, w = table.shape[:2]
-    # newcameramtx, roi = cv2.getOptimalNewCameraMatrix(MTX, DIST, (w, h), 1, (w, h))
-    # dst = cv2.undistort(table, MTX, DIST, None, newcameramtx)
-    # x, y, w, h = roi
-    # dst = dst[y : y + h, x : x + w]
-    # cv2.imshow("calibresult_table.png", dst)
+    if undistort:
+        h, w = table.shape[:2]
+        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(MTX, DIST, (w, h), 1, (w, h))
+        dst = cv2.undistort(table, MTX, DIST, None, newcameramtx)
+        x, y, w, h = roi
+        dst = dst[y : y + h, x : x + w]
+
+        image = dst
+        # cv2.imshow("calibresult_table.png", dst)
 
     # Blur image
     blurred_image = cv2.bilateralFilter(image, 5, 175, 175)
@@ -31,16 +33,16 @@ def find_corners(image):
     # Convert BGR to HSV
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+    # Build mask
     lower_color = np.array([47, 35, 128])
     upper_color = np.array([86, 86, 236])
-
     mask = cv2.inRange(hsv, lower_color, upper_color)
     cv2.imshow("corners", cv2.resize(mask, (960, 540)))
 
+    # Find the 4 corners
     contours = cv2.findContours(
         mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )[-2]
-
     contours = sorted(contours, key=lambda x: cv2.contourArea(x), reverse=True)
 
     img1 = cv2.drawContours(image, contours[:4], -1, (0, 255, 0), 3)
@@ -49,11 +51,22 @@ def find_corners(image):
 
 
 def convert_pixels_to_coords(pixel_x, pixel_y):
-    pass
+    # Todo
+    return (pixel_x, pixel_y)
 
 
 def find_balls(image, color):
-    pass
+    balls = []
+    # Convert to hsv
+
+    # use mask depending on color passed in
+    if color == "white":
+        # e.g. use the correct boundries
+        pass
+
+    # use convert_pixels_to_coords,
+
+    return balls
 
 
 cap = cv2.VideoCapture(0)
