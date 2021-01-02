@@ -15,10 +15,10 @@ class PygameExit(Exception):
 
 
 def coord_to_pixel(coord):
-    max_y_pixels = 600
-    max_y_coord = 167.5
+    max_x_pixels = 600
+    max_x_coord = 167.5
 
-    pixel = round(coord * (max_y_pixels / max_y_coord))
+    pixel = round(coord * (max_x_pixels / max_x_coord))
     return pixel
 
 
@@ -86,8 +86,8 @@ def draw_board(screen, board):
 
 
 if __name__ == "__main__":
-    X_MAX = 83.5
-    Y_MAX = 167.5
+    X_MAX = 167.5
+    Y_MAX = 83.5
 
     # Single ball test
     screen = setup_screen(X_MAX, Y_MAX)
@@ -99,10 +99,10 @@ if __name__ == "__main__":
     white_ball = Ball(40, 40, WHITE, is_white_ball=True)
     board.add_ball(white_ball)
 
-    ball_2 = Ball(43, 55, RED)
+    ball_2 = Ball(55, 43, RED)
     board.add_ball(ball_2)
 
-    cue = Cue(40, 0)
+    cue = Cue(0, 40)
     cue.set_front(white_ball.x_initial, white_ball.y_initial)
     board.add_cue(cue)
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             break
 
     # Multi ball test.
-    cue_pos = [40, 0]
+    cue_pos = [0, 40]
 
     # setup new screen
     screen = setup_screen(X_MAX, Y_MAX)
@@ -149,13 +149,13 @@ if __name__ == "__main__":
                 white_ball = Ball(40, 40, WHITE, is_white_ball=True)
                 board.add_ball(white_ball)
 
-                ball_1 = Ball(40, 100, RED)
+                ball_1 = Ball(100, 40, RED)
                 board.add_ball(ball_1)
 
-                ball_2 = Ball(37.5, 105, RED)
+                ball_2 = Ball(105, 37.5, RED)
                 board.add_ball(ball_2)
 
-                ball_3 = Ball(42.5, 105, RED)
+                ball_3 = Ball(105, 42.5, RED)
                 board.add_ball(ball_3)
 
                 cue = Cue(cue_pos[0], cue_pos[1])
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             break
 
     # Multi ball test.
-    cue_pos = [40, 0]
+    cue_pos = [0, 40]
 
     # setup new screen
     screen = setup_screen(X_MAX, Y_MAX)
@@ -208,43 +208,43 @@ if __name__ == "__main__":
                 board.add_ball(white_ball)
 
                 # Row 1
-                ball_1 = Ball(40, 100, RED)
+                ball_1 = Ball(100, 40, RED)
                 board.add_ball(ball_1)
 
                 # Row 2
-                ball_2 = Ball(37.5, 105, RED)
+                ball_2 = Ball(105, 37.5, RED)
                 board.add_ball(ball_2)
-                ball_3 = Ball(42.5, 105, RED)
+                ball_3 = Ball(105, 42.5, RED)
                 board.add_ball(ball_3)
 
                 # Row 3
-                ball_4 = Ball(35, 110, RED)
+                ball_4 = Ball(110, 35, RED)
                 board.add_ball(ball_4)
-                ball_5 = Ball(40, 110, RED)
+                ball_5 = Ball(110, 40, RED)
                 board.add_ball(ball_5)
-                ball_6 = Ball(45, 110, RED)
+                ball_6 = Ball(110, 45, RED)
                 board.add_ball(ball_6)
 
                 # Row 4
-                ball_7 = Ball(32.5, 115, RED)
+                ball_7 = Ball(115, 32.5, RED)
                 board.add_ball(ball_7)
-                ball_8 = Ball(37.5, 115, RED)
+                ball_8 = Ball(115, 37.5, RED)
                 board.add_ball(ball_8)
-                ball_9 = Ball(42.5, 115, RED)
+                ball_9 = Ball(115, 42.5, RED)
                 board.add_ball(ball_9)
-                ball_10 = Ball(47.5, 115, RED)
+                ball_10 = Ball(115, 47.5, RED)
                 board.add_ball(ball_10)
 
                 # Row 5
-                ball_11 = Ball(30, 120, RED)
+                ball_11 = Ball(120, 30, RED)
                 board.add_ball(ball_11)
-                ball_12 = Ball(35, 120, RED)
+                ball_12 = Ball(120, 35, RED)
                 board.add_ball(ball_12)
-                ball_13 = Ball(40, 120, RED)
+                ball_13 = Ball(120, 40, RED)
                 board.add_ball(ball_13)
-                ball_14 = Ball(45, 120, RED)
+                ball_14 = Ball(120, 45, RED)
                 board.add_ball(ball_14)
-                ball_15 = Ball(50, 120, RED)
+                ball_15 = Ball(120, 50, RED)
                 board.add_ball(ball_15)
 
                 cue = Cue(cue_pos[0], cue_pos[1])

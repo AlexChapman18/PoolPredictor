@@ -94,6 +94,20 @@ class Board:
             [0, self.max_y],
             [self.max_x, self.max_y],
         ]
+        pocket_coords = [
+            [0, 0],
+            [0, self.max_y],
+            [
+                self.max_x / 2,
+                0,
+            ],
+            [self.max_x / 2, self.max_y],
+            [self.max_x, 0],
+            [
+                self.max_x,
+                self.max_y,
+            ],
+        ]
 
         for pocket_coord in pocket_coords:
             pocket = Pocket(pocket_coord[0], pocket_coord[1])
