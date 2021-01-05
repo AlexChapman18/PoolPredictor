@@ -113,25 +113,33 @@ class Board:
             pocket = Pocket(pocket_coord[0], pocket_coord[1])
             self.pockets.append(pocket)
 
-    def hit_white_ball(self):
+    def get_white_ball(self):
         for ball in self.all_balls:
             if ball.is_white_ball:
-                initial_speed = 1
+                return ball
+        return None
 
-                if self.cue.get_abs_len() == 0:
-                    # will get zero error, jus break
-                    break
+    def hit_white_ball(self):
+        white_ball = self.get_white_ball()
 
-                # Find the angle which the ball should travel
-                # In the code, the cue contains 2 points, the
-                # front and the back of the cue
-                ball.v[0] = initial_speed * (
-                    self.cue.get_x_diff() / self.cue.get_abs_len()
-                )
-                ball.v[1] = initial_speed * (
-                    self.cue.get_y_diff() / self.cue.get_abs_len()
-                )
-                break
+        if white_ball == None:
+            return None
+
+        initial_speed = 1
+
+        if self.cue.get_abs_len() == 0:
+            # will get zero error
+            return None
+
+        # Find the angle which the ball should travel
+        # In the code, the cue contains 2 points, the
+        # front and the back of the cue
+        white_ball.v[0] = initial_speed * (
+            self.cue.get_x_diff() / self.cue.get_abs_len()
+        )
+        white_ball.v[1] = initial_speed * (
+            self.cue.get_y_diff() / self.cue.get_abs_len()
+        )
 
     # should this be in another function?
     # it doesn't use self at all...

@@ -6,6 +6,7 @@
 # (python) range-detector --filter RGB --image /path/to/image.png
 # or
 # (python) range-detector --filter HSV --webcam
+# python range-detector --filter HSV --image table_new_balls.jpg
 
 import cv2
 import argparse

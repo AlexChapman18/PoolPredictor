@@ -4,6 +4,7 @@ from config import RET, MTX, DIST, RVECS, TVECS
 import math
 
 from simulate import Ball, Board, Cue
+from draw_results import WHITE, RED
 
 X_MAX = 167.5
 Y_MAX = 83.5
@@ -106,31 +107,6 @@ class Table:
         return (x_coord, y_coord)
 
 
-def process_image(image, undistort=False):
-
-    if undistort:
-        h, w = image.shape[:2]
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(MTX, DIST, (w, h), 1, (w, h))
-        dst = cv2.undistort(image, MTX, DIST, None, newcameramtx)
-        x, y, w, h = roi
-        dst = dst[y : y + h, x : x + w]
-
-        image = dst
-        # cv2.imshow("calibresult_table.png", dst)
-
-    # Blur image
-    blurred_image = cv2.bilateralFilter(image, 5, 175, 175)
-
-    # Find table
-    table = find_table(blurred_image)
-
-    # a, b = table.convert_pixels_to_coords(800, 800)
-    print("bottom right", table.convert_pixels_to_coords(table.bot_right_corner))
-    print("top right", table.convert_pixels_to_coords(table.top_right_corner))
-    print("top left", table.convert_pixels_to_coords(table.top_left_corner))
-    print("bottom left", table.convert_pixels_to_coords(table.bot_left_corner))
-
-
 def find_table(image):
     corners = find_table_corners(image)
 
@@ -157,15 +133,9 @@ def find_table(image):
     board_y_pix_len = distances[0]
     board_x_pix_len = distances[1]
 
-    # Draw all the connected corners on the table, only used for debug
-    if DEBUG:
-        a = np.array(
-            [top_left_corner, bot_left_corner, bot_right_corner, top_right_corner]
-        )
-        img2 = cv2.drawContours(image, [a], 0, (255, 255, 255), 2)
-
-        cv2.imshow("corners found", cv2.resize(img2, (960, 540)))
-        cv2.waitKey(0)
+    # Save all connected corners on the table, only used for debug
+    a = np.array([top_left_corner, bot_left_corner, bot_right_corner, top_right_corner])
+    debug_image = cv2.drawContours(image, [a], 0, (255, 255, 255), 2)
 
     table = Table(
         Board(X_MAX, Y_MAX),
@@ -176,7 +146,7 @@ def find_table(image):
         board_x_pix_len,
         board_y_pix_len,
     )
-    return table
+    return table, debug_image
 
 
 def find_table_corners(image):
@@ -214,24 +184,178 @@ def find_table_corners(image):
     return corners
 
 
-def find_balls(image, color):
-    balls = []
-    # Convert to hsv
+def ball_blob_detect(
+    image,
+    hsv_min,
+    hsv_max,
+):
 
-    # use mask depending on color passed in
-    if color == "white":
-        # e.g. use the correct boundries
-        pass
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, hsv_min, hsv_max)
+    reversemask = 255 - mask
+    # cv2.imshow("ball_detect_mask" + str(hsv_min), cv2.resize(mask, (960, 540)))
 
-    # use convert_pixels_to_coords,
+    # removes filters from blob detection
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByConvexity = True
+    params.minConvexity = 0.9
+    params.filterByCircularity = True
+    params.minCircularity = 0.8
+    params.filterByInertia = False
 
-    return balls
+    # finds all blobs and puts them in a list
+    detector = cv2.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(reversemask)
+
+    # Finds the largest blob (most likely to be the ball with colour and circularity filtering in place)
+    size = 0
+    for point in keypoints:
+        if point.size > size:
+            size = point.size
+            largest_blob = point
+
+    # Looks for any ball the same size as the ball found -10% for blurring errors and stuff
+    BallCoordinates = []
+    for point in keypoints:
+        if point.size > (size - (size * 0.1)):
+            BallCoordinates.append((point.pt[0], point.pt[1]))
+    return BallCoordinates
 
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 1280)
-cap.set(4, 720)
+def add_ball_color_to_table(image, table, hsv_min, hsv_max, color, debug_image):
+    balls = ball_blob_detect(image, hsv_min, hsv_max)
 
+    white_ball = False
+    if color == WHITE:
+        white_ball = True
+
+    for ball in balls:
+        ball_coords = table.convert_pixels_to_coords(ball)
+        table.sim_board.add_ball(
+            Ball(ball_coords[0], ball_coords[1], color, is_white_ball=white_ball)
+        )
+
+        # Add ball to the debug image
+        debug_image = cv2.circle(
+            debug_image,
+            tuple([int(i) for i in ball]),
+            radius=4,
+            color=(0, 0, 255),
+            thickness=8,
+        )
+
+    return debug_image
+
+
+def add_cue_to_table(image, table, debug_image):
+    cue_hsv_min = (91, 46, 199)
+    cue_hsv_max = (130, 69, 251)
+
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, cue_hsv_min, cue_hsv_max)
+    # cv2.imshow("corners", cv2.resize(mask, (960, 540)))
+
+    # Find cue in image
+    cue_contours = cv2.findContours(
+        mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )[-2]
+    cue_contour = sorted(cue_contours, key=lambda x: cv2.contourArea(x), reverse=True)[
+        0
+    ]
+
+    # Find the center of the cue
+    moment = cv2.moments(cue_contour)
+    center_x = int(moment["m10"] / moment["m00"])
+    center_y = int(moment["m01"] / moment["m00"])
+    cue_point = (center_x, center_y)
+
+    # Draw for debug
+    debug_image = cv2.circle(
+        debug_image,
+        tuple([int(i) for i in cue_point]),
+        radius=4,
+        color=(0, 255, 255),
+        thickness=8,
+    )
+
+    # Add cue to the board
+    cue_coords = table.convert_pixels_to_coords(cue_point)
+    cue = Cue(cue_coords[0], cue_coords[1])
+    white_ball = table.sim_board.get_white_ball()
+    cue.set_front(white_ball.x_initial, white_ball.y_initial)
+    table.sim_board.add_cue(cue)
+
+    return debug_image
+
+
+# Loop through the different colour balls, and add them
+# to the table
+def add_all_balls_table(image, table, debug_image):
+    # White
+    white_hsv_min = (0, 0, 157)
+    white_hsv_max = (185, 34, 255)
+    debug_image = add_ball_color_to_table(
+        image, table, white_hsv_min, white_hsv_max, WHITE, debug_image
+    )
+
+    # Red balls
+    # red_hsv_min = (142, 119, 106)
+    # red_hsv_max = (179, 215, 255)
+    red_hsv_min = (145, 64, 135)
+    red_hsv_max = (255, 255, 255)
+    debug_image = add_ball_color_to_table(
+        image, table, red_hsv_min, red_hsv_max, RED, debug_image
+    )
+
+    # Yellow balls
+
+    # black balls
+
+    return debug_image
+
+
+def process_image(image, undistort=False):
+
+    if undistort:
+        h, w = image.shape[:2]
+        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(MTX, DIST, (w, h), 1, (w, h))
+        dst = cv2.undistort(image, MTX, DIST, None, newcameramtx)
+        x, y, w, h = roi
+        dst = dst[y : y + h, x : x + w]
+
+        image = dst
+        # cv2.imshow("calibresult_table.png", dst)
+
+    # Blur image
+    blurred_image = cv2.bilateralFilter(image, 5, 175, 175)
+
+    # Find table
+    table, debug_image = find_table(blurred_image)
+
+    # Find balls
+    debug_image = add_all_balls_table(blurred_image, table, debug_image)
+
+    # Find cue
+    debug_image = add_cue_to_table(blurred_image, table, debug_image)
+
+    if DEBUG:
+        cv2.imshow("corners found", cv2.resize(debug_image, (760, 370)))
+        cv2.waitKey(1)
+
+    print("bottom right", table.convert_pixels_to_coords(table.bot_right_corner))
+    print("top right", table.convert_pixels_to_coords(table.top_right_corner))
+    print("top left", table.convert_pixels_to_coords(table.top_left_corner))
+    print("bottom left", table.convert_pixels_to_coords(table.bot_left_corner))
+
+    return table.sim_board
+
+
+if False:
+    cap = cv2.VideoCapture(0)
+    cap.set(3, 1280)
+    cap.set(4, 720)
+
+# Live test
 while False:
     try:
         ret, frame = cap.read()
@@ -240,8 +364,9 @@ while False:
         print("error")
 
 # Single image tests
-# table = cv2.imread("corners_and_player_no_hair.jpg")
-# process_image(table, undistort=True)
+if False:
+    table = cv2.imread("table_new_balls_2.jpg")
+    process_image(table, undistort=False)
 
-table_1 = cv2.imread("corners_and_player_no_hair_rotated.jpg")
-process_image(table_1, undistort=False)
+    table_1 = cv2.imread("corners_and_player_no_hair_rotated.jpg")
+    process_image(table_1, undistort=False)
